@@ -3,12 +3,16 @@ import requests
 import json
 import re
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # Load environment variables
 
 app = Flask(__name__)
 
 # API setup
-API_HOST = "booking-com15.p.rapidapi.com"
-API_KEY = "a7fe2d22c1msh3d1be799b474535p1d9238jsn6dee1a6e725a"  # Replace with your API key
+API_HOST = os.getenv('RAPIDAPI_HOST')
+API_KEY = os.getenv('RAPIDAPI_KEY')
 HEADERS = {
     'x-rapidapi-key': API_KEY,
     'x-rapidapi-host': API_HOST
