@@ -77,59 +77,73 @@ def parse_dates(dates):
         return None, None
 
 def search_hotels(destination, dates, budget):
-    check_in, check_out = parse_dates(dates)
-    if not check_in or not check_out:
-        return {"error": "Invalid date format. Use 'Month Day-Day' (e.g., 'March 28-30')"}
+    try:
+        check_in, check_out = parse_dates(dates)
+        if not check_in or not check_out:
+            return {"error": "Invalid date format. Use 'Month Day-Day' (e.g., 'March 28-30')"}
+        
+        dest_key = next((key for key in DEST_IDS.keys() if key.lower() == destination.lower()), None)
+        if not dest_key:
+            return {"error": f"Sorry, I don't recognize '{destination}'. Try cities like {', '.join(list(DEST_IDS.keys())[:5])}... (and more!)"}
+        dest_id = DEST_IDS[dest_key]
+        
+        url = "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotels"
+        params = {
+            "dest_id": dest_id,
+            "search_type": "CITY",
+            "arrival_date": check_in,
+            "departure_date": check_out,
+            "adults": "1",
+            "children_age": "0,17",
+            "room_qty": "1",
+            "page_number": "1",
+            "units": "metric",
+            "temperature_unit": "c",
+            "languagecode": "en-us",
+            "currency_code": "INR",
+            "location": "IN"
+        }
+        
+        print(f"Making API request with params: {params}")  # Debug log
+        response = requests.get(url, headers=HEADERS, params=params)
+        
+        # Print response status and content for debugging
+        print(f"Response status: {response.status_code}")
+        print(f"Response content: {response.text[:500]}")  # Print first 500 chars
+        
+        response.raise_for_status()  # Raise exception for bad status codes
+        hotels_data = response.json()
+        
+        if "data" not in hotels_data or "hotels" not in hotels_data["data"]:
+            return {"error": f"API response format unexpected: {str(hotels_data)[:200]}"}
+        
+        matching_hotels = []
+        nights = (datetime.strptime(check_out, "%Y-%m-%d") - datetime.strptime(check_in, "%Y-%m-%d")).days
+        for hotel in hotels_data["data"]["hotels"]:
+            price = float(hotel["property"]["priceBreakdown"]["grossPrice"]["value"])
+            price_per_night = price / nights
+            if price_per_night <= budget:
+                matching_hotels.append({
+                    "name": hotel["property"]["name"],
+                    "stars": hotel["property"]["propertyClass"],
+                    "price_per_night": round(price_per_night, 2),
+                    "total_price": price,
+                    "taxes": hotel["property"]["priceBreakdown"]["excludedPrice"]["value"],
+                    "review_score": hotel["property"]["reviewScore"],
+                    "review_word": hotel["property"]["reviewScoreWord"],
+                    "review_count": hotel["property"]["reviewCount"],
+                    "photo": hotel["property"]["photoUrls"][0] if hotel["property"]["photoUrls"] else "https://via.placeholder.com/300x150?text=No+Image",
+                    "features": "Free cancellation" if "Free cancellation" in hotel["accessibilityLabel"] else "N/A"
+                })
+        
+        return matching_hotels if matching_hotels else {"error": f"No hotels found under ₹{budget}/night"}
     
-    # Normalize destination to match DEST_IDS keys (case-insensitive lookup)
-    dest_key = next((key for key in DEST_IDS.keys() if key.lower() == destination.lower()), None)
-    if not dest_key:
-        return {"error": f"Sorry, I don’t recognize '{destination}'. Try cities like {', '.join(list(DEST_IDS.keys())[:5])}... (and more!)"}
-    dest_id = DEST_IDS[dest_key]
-    
-    url = "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotels"
-    params = {
-        "dest_id": dest_id,
-        "search_type": "CITY",
-        "arrival_date": check_in,
-        "departure_date": check_out,
-        "adults": "1",
-        "children_age": "0,17",
-        "room_qty": "1",
-        "page_number": "1",
-        "units": "metric",
-        "temperature_unit": "c",
-        "languagecode": "en-us",
-        "currency_code": "INR",
-        "location": "IN"
-    }
-    
-    response = requests.get(url, headers=HEADERS, params=params)
-    hotels_data = response.json()
-    
-    if "data" not in hotels_data or "hotels" not in hotels_data["data"] or not hotels_data["data"]["hotels"]:
-        return {"error": "No hotels found for the given criteria"}
-    
-    matching_hotels = []
-    nights = (datetime.strptime(check_out, "%Y-%m-%d") - datetime.strptime(check_in, "%Y-%m-%d")).days
-    for hotel in hotels_data["data"]["hotels"]:
-        price = float(hotel["property"]["priceBreakdown"]["grossPrice"]["value"])
-        price_per_night = price / nights
-        if price_per_night <= budget:
-            matching_hotels.append({
-                "name": hotel["property"]["name"],
-                "stars": hotel["property"]["propertyClass"],
-                "price_per_night": round(price_per_night, 2),
-                "total_price": price,
-                "taxes": hotel["property"]["priceBreakdown"]["excludedPrice"]["value"],
-                "review_score": hotel["property"]["reviewScore"],
-                "review_word": hotel["property"]["reviewScoreWord"],
-                "review_count": hotel["property"]["reviewCount"],
-                "photo": hotel["property"]["photoUrls"][0] if hotel["property"]["photoUrls"] else "https://via.placeholder.com/300x150?text=No+Image",
-                "features": "Free cancellation" if "Free cancellation" in hotel["accessibilityLabel"] else "N/A"
-            })
-    
-    return matching_hotels if matching_hotels else {"error": f"No hotels found under ₹{budget}/night"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"API request failed: {str(e)}"}
+    except json.JSONDecodeError as e:
+        return {"error": f"Failed to parse API response: {str(e)}"}
+    except Exception as e:
+        return {"error": f"An unexpected error occurred: {str(e)}"}
 
 def parse_prompt(prompt):
     prompt = prompt.lower()
