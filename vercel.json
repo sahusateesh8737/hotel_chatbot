@@ -2,20 +2,14 @@
     "version": 2,
     "buildCommand": "pip install -r requirements.txt",
     "outputDirectory": ".",
-    "functions": {
-        "api/index.py": {
-            "runtime": "python3.9",
-            "memory": 1024,
-            "maxDuration": 10
-        }
-    },
     "builds": [
         {
             "src": "api/index.py",
-            "use": "@vercel/python@3.1.0",
+            "use": "@vercel/python",
             "config": {
                 "runtime": "python3.9",
-                "maxLambdaSize": "15mb"
+                "memory": 1024,
+                "maxDuration": 10
             }
         }
     ],
@@ -24,5 +18,9 @@
             "src": "/(.*)",
             "dest": "api/index.py"
         }
-    ]
+    ],
+    "env": {
+        "FLASK_APP": "api/index.py",
+        "FLASK_ENV": "production"
+    }
 }
