@@ -155,26 +155,70 @@ def parse_prompt(prompt):
     dates = None
     budget = 5000  # Default budget
     
-    # Extract destination
-    dest_match = re.search(r'in\s+([a-z\s]+)(?:\s+for|$)', prompt)
-    if dest_match:
-        destination = dest_match.group(1).strip()
+    # Extended patterns for destination extraction
+    dest_patterns = [
+        r'in\s+([a-z]+)(?:\s+for|\s*$)',                    # "hotels in Mumbai"
+        r'place\s+to\s+stay\s+in\s+([a-z]+)',               # "place to stay in Delhi"
+        r'hotels?\s+(?:in|at)\s+([a-z]+)',                  # "hotel in Bangalore" or "hotels at Bangalore"
+        r'accommodations?\s+(?:in|at)\s+([a-z]+)',          # "accommodation in Chennai"
+        r'rooms?\s+(?:in|at)\s+([a-z]+)',                   # "room in Kolkata"
+        r'book\s+(?:a\s+)?(?:hotel|room|stay)\s+in\s+([a-z]+)',  # "book a hotel in Hyderabad"
+        r'visiting\s+([a-z]+)',                             # "visiting Mumbai"
+        r'traveling\s+to\s+([a-z]+)',                       # "traveling to Jaipur"
+        r'trip\s+to\s+([a-z]+)'                             # "trip to Goa"
+    ]
     
-    # Extract dates
-    date_match = re.search(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*-\s*(\d{1,2})', prompt)
-    if date_match:
-        month, day_in, day_out = date_match.groups()
-        dates = f"{month.capitalize()} {day_in}-{day_out}"
+    # Try each pattern until we find a match
+    for pattern in dest_patterns:
+        dest_match = re.search(pattern, prompt)
+        if dest_match:
+            destination = dest_match.group(1).strip()
+            break
     
-    # Extract budget
-    budget_match = re.search(r'under\s*[₹]?(\d+)', prompt)
-    if budget_match:
-        budget = int(budget_match.group(1))
+    # Extract dates - expanded to handle more formats
+    date_patterns = [
+        r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*-\s*(\d{1,2})',  # "April 15-17"
+        r'from\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:\s+to|\s*-\s*)(\d{1,2})',  # "from April 15 to 17"
+        r'between\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:\s+and|\s*-\s*)(\d{1,2})',  # "between April 15 and 17"
+        r'(\d{1,2})(?:st|nd|rd|th)?\s*-\s*(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)',  # "15th-17th April"
+        r'(\d{1,2})(?:st|nd|rd|th)?\s+to\s+(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)'   # "15th to 17th April"
+    ]
+    
+    for pattern in date_patterns:
+        date_match = re.search(pattern, prompt)
+        if date_match:
+            groups = date_match.groups()
+            # Handle different date formats
+            if groups[0].lower() in ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]:
+                month, day_in, day_out = groups
+                dates = f"{month.capitalize()} {day_in}-{day_out}"
+            else:
+                day_in, day_out, month = groups
+                dates = f"{month.capitalize()} {day_in}-{day_out}"
+            break
+    
+    # Extract budget - expanded to handle more formats
+    budget_patterns = [
+        r'under\s*[₹]?(\d+)',                 # "under ₹3000"
+        r'less\s+than\s*[₹]?(\d+)',           # "less than ₹3000"
+        r'budget\s*(?:of|is)?\s*[₹]?(\d+)',   # "budget of ₹3000" or "budget is ₹3000"
+        r'max(?:imum)?\s*[₹]?(\d+)',          # "max ₹3000" or "maximum ₹3000"
+        r'not\s+more\s+than\s*[₹]?(\d+)',     # "not more than ₹3000"
+        r'cheaper\s+than\s*[₹]?(\d+)',        # "cheaper than ₹3000"
+        r'below\s*[₹]?(\d+)',                 # "below ₹3000"
+        r'up\s+to\s*[₹]?(\d+)'                # "up to ₹3000"
+    ]
+    
+    for pattern in budget_patterns:
+        budget_match = re.search(pattern, prompt)
+        if budget_match:
+            budget = int(budget_match.group(1))
+            break
     
     if not destination:
         return None, None, None, "Please tell me the city (e.g., Mumbai, Delhi)."
     if not dates:
-        return None, None, None, "Please include dates like 'March 28-30'."
+        return None, None, None, "Please include dates like 'March 28-30' or '28-30 March'."
     
     return destination, dates, budget, None
 
