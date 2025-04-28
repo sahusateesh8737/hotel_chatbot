@@ -80,7 +80,7 @@ def parse_dates(dates):
     except Exception:
         return None, None
 
-def search_hotels(destination, dates, budget):
+def search_hotels(destination, dates, budget, hotel_type=None):
     try:
         check_in, check_out = parse_dates(dates)
         if not check_in or not check_out:
@@ -108,6 +108,12 @@ def search_hotels(destination, dates, budget):
             "location": "IN"
         }
         
+        # Modify API parameters based on hotel_type
+        if hotel_type == "luxury":
+            params["sort_by"] = "class_descending"  # Sort by hotel class (stars) descending
+        elif hotel_type == "budget":
+            params["sort_by"] = "price"  # Sort by price ascending
+        
         print(f"Making API request with params: {params}")  # Debug log
         response = requests.get(url, headers=HEADERS, params=params)
         
@@ -126,6 +132,13 @@ def search_hotels(destination, dates, budget):
         for hotel in hotels_data["data"]["hotels"]:
             price = float(hotel["property"]["priceBreakdown"]["grossPrice"]["value"])
             price_per_night = price / nights
+            
+            # Apply additional filtering based on hotel_type
+            if hotel_type == "luxury" and hotel["property"]["propertyClass"] < 4:
+                continue  # Skip hotels with less than 4 stars for luxury searches
+            elif hotel_type == "budget" and price_per_night > 3000:
+                continue  # Skip hotels more expensive than 3000 for budget searches
+            
             if price_per_night <= budget:
                 matching_hotels.append({
                     "name": hotel["property"]["name"],
@@ -140,7 +153,15 @@ def search_hotels(destination, dates, budget):
                     "features": "Free cancellation" if "Free cancellation" in hotel["accessibilityLabel"] else "N/A"
                 })
         
-        return matching_hotels if matching_hotels else {"error": f"No hotels found under ₹{budget}/night"}
+        # Additional sorting after API results are received
+        if hotel_type == "luxury":
+            matching_hotels.sort(key=lambda x: (-x["stars"], x["price_per_night"]))  # Sort by stars (desc) then price (asc)
+        elif hotel_type == "budget":
+            matching_hotels.sort(key=lambda x: (x["price_per_night"], -x["stars"]))  # Sort by price (asc) then stars (desc)
+        else:
+            matching_hotels.sort(key=lambda x: (-x["stars"], x["price_per_night"]))  # Default sort
+        
+        return matching_hotels if matching_hotels else {"error": f"No hotels found under ₹{budget}/night for your {hotel_type if hotel_type else 'search'} criteria"}
     
     except requests.exceptions.RequestException as e:
         return {"error": f"API request failed: {str(e)}"}
@@ -154,6 +175,19 @@ def parse_prompt(prompt):
     destination = None
     dates = None
     budget = 5000  # Default budget
+    hotel_type = None  # Add hotel_type parameter
+    
+    # Check if the prompt is a single city name (common follow-up response)
+    if re.match(r'^[a-z\s]+$', prompt) and prompt.strip() in [city.lower() for city in DEST_IDS.keys()]:
+        # This appears to be just a city name
+        destination = prompt.strip()
+        # Set default dates for simple city queries (next day for 2 nights)
+        today = datetime.now()
+        tomorrow = today.replace(day=today.day + 1)
+        day_after = today.replace(day=today.day + 2)
+        month_name = tomorrow.strftime("%B")
+        dates = f"{month_name} {tomorrow.day}-{day_after.day}"
+        return destination, dates, budget, hotel_type, None
     
     # Extended patterns for destination extraction
     dest_patterns = [
@@ -165,7 +199,9 @@ def parse_prompt(prompt):
         r'book\s+(?:a\s+)?(?:hotel|room|stay)\s+in\s+([a-z]+)',  # "book a hotel in Hyderabad"
         r'visiting\s+([a-z]+)',                             # "visiting Mumbai"
         r'traveling\s+to\s+([a-z]+)',                       # "traveling to Jaipur"
-        r'trip\s+to\s+([a-z]+)'                             # "trip to Goa"
+        r'trip\s+to\s+([a-z]+)',                            # "trip to Goa"
+        r'(?:budget|cheap|affordable)\s+(?:stay|hotels?|accommodations?)\s+in\s+([a-z]+)',  # "Budget stay in Bangalore"
+        r'(?:luxury|premium|5\s*star)\s+hotels?\s+in\s+([a-z]+)'  # "Luxury hotels in Goa"
     ]
     
     # Try each pattern until we find a match
@@ -215,12 +251,35 @@ def parse_prompt(prompt):
             budget = int(budget_match.group(1))
             break
     
-    if not destination:
-        return None, None, None, "Please tell me the city (e.g., Mumbai, Delhi)."
-    if not dates:
-        return None, None, None, "Please include dates like 'March 28-30' or '28-30 March'."
+    # Extract hotel type (budget, luxury, etc.)
+    hotel_type_patterns = [
+        r'(budget|cheap|affordable)\s+(?:stay|hotels?|accommodations?)',  # "Budget stay in Bangalore"
+        r'(luxury|premium|5\s*star|high-end)\s+(?:stay|hotels?|accommodations?)',  # "Luxury hotels in Goa"
+        r'(mid-range|standard|3\s*star)\s+(?:stay|hotels?|accommodations?)'  # "Mid-range stay"
+    ]
     
-    return destination, dates, budget, None
+    for pattern in hotel_type_patterns:
+        type_match = re.search(pattern, prompt)
+        if type_match:
+            hotel_type = type_match.group(1).strip()
+            # Adjust budget based on hotel type
+            if hotel_type in ["budget", "cheap", "affordable"]:
+                hotel_type = "budget"
+                budget = min(budget, 3000)  # Lower budget for budget stays
+            elif hotel_type in ["luxury", "premium", "5 star", "high-end"]:
+                hotel_type = "luxury"
+                budget = max(budget, 10000)  # Higher budget for luxury stays
+            elif hotel_type in ["mid-range", "standard", "3 star"]:
+                hotel_type = "mid-range"
+                budget = max(min(budget, 8000), 3000)  # Mid-range budget
+            break
+    
+    if not destination:
+        return None, None, None, None, "Please tell me the city (e.g., Mumbai, Delhi)."
+    if not dates:
+        return None, None, None, None, "Please include dates like 'March 28-30' or '28-30 March'."
+    
+    return destination, dates, budget, hotel_type, None
 
 @app.route('/')
 def index():
@@ -232,16 +291,20 @@ def chat():
     if not user_message:
         return jsonify({"response": "Please say something!"})
     
-    destination, dates, budget, error = parse_prompt(user_message)
+    destination, dates, budget, hotel_type, error = parse_prompt(user_message)
     if error:
         return jsonify({"response": error})
     
-    result = search_hotels(destination, dates, budget)
+    result = search_hotels(destination, dates, budget, hotel_type)
     if isinstance(result, dict) and "error" in result:
         return jsonify({"response": result["error"]})
     
     # Format bot response as HTML for the chat
-    response = f"Here are some hotels in {destination.capitalize()} for {dates} under ₹{budget}/night:<br><ul>"
+    type_message = ""
+    if hotel_type:
+        type_message = f" looking for {hotel_type} options"
+    
+    response = f"Here are some hotels in {destination.capitalize()} for {dates}{type_message} under ₹{budget}/night:<br><ul>"
     for hotel in result[:5]:  # Limit to 5 for brevity
         response += (
             f"<li><strong>{hotel['name']}</strong><br>"

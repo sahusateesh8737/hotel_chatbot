@@ -4,98 +4,455 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hotel Chatbot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        :root {
+            --primary-color: #1e88e5;
+            --secondary-color: #f5f5f5;
+            --accent-color: #ff9800;
+            --text-color: #333333;
+            --light-text: #757575;
+            --white: #ffffff;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
             padding: 20px;
-            background-color: #f4f4f4;
+            color: var(--text-color);
+            line-height: 1.6;
         }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        #chat-container {
-            max-width: 800px;
+        
+        .container {
+            max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             padding: 20px;
-            height: 500px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .header p {
+            color: var(--light-text);
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+        
+        #chat-container {
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            max-width: 1000px;
+            margin: 0 auto;
+            height: 70vh;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
+        
+        #chat-header {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        #chat-header .avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+        }
+        
+        #chat-header h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        
         #chat-history {
             flex: 1;
             overflow-y: auto;
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
+            padding: 20px;
+            background: #f9fafc;
+            scroll-behavior: smooth;
         }
+        
         .message {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
+            margin-bottom: 20px;
+            max-width: 80%;
+            animation: fadeIn 0.3s;
         }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .user-message {
-            background-color: #0071c2;
-            color: white;
-            text-align: right;
-            margin-left: 20%;
+            margin-left: auto;
+            background: var(--primary-color);
+            color: var(--white);
+            border-radius: 18px 18px 0 18px;
+            padding: 12px 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
+        
         .bot-message {
-            background-color: #e9ecef;
-            color: #333;
-            margin-right: 20%;
+            margin-right: auto;
+            background: var(--white);
+            color: var(--text-color);
+            border-radius: 18px 18px 18px 0;
+            padding: 12px 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
         }
+        
         .bot-message ul {
             list-style-type: none;
             padding: 0;
+            margin-top: 15px;
         }
+        
         .bot-message li {
-            margin: 10px 0;
+            background: var(--white);
+            border-radius: 12px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #eaeaea;
+            transition: var(--transition);
         }
+        
+        .bot-message li:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bot-message img {
+            width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+            max-height: 150px;
+            object-fit: cover;
+        }
+        
+        .hotel-card {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .hotel-card img {
+            grid-row: span 3;
+            width: 120px;
+            height: 100px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        
+        .hotel-info h3 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+        
+        .hotel-stars {
+            color: var(--accent-color);
+            margin: 5px 0;
+        }
+        
+        .hotel-price {
+            font-weight: bold;
+        }
+        
+        .hotel-rating {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
         #chat-form {
             display: flex;
-            margin-top: 10px;
+            padding: 15px;
+            border-top: 1px solid #eaeaea;
+            background: var(--white);
         }
+        
         #chat-input {
             flex: 1;
-            padding: 10px;
+            padding: 12px 20px;
             border: 1px solid #ddd;
-            border-radius: 5px 0 0 5px;
+            border-radius: 30px;
             outline: none;
+            font-size: 1rem;
+            transition: var(--transition);
         }
+        
+        #chat-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+        }
+        
         #chat-submit {
-            padding: 10px 20px;
-            background-color: #0071c2;
+            margin-left: 10px;
+            padding: 0 25px;
+            background: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 0 5px 5px 0;
+            border-radius: 30px;
             cursor: pointer;
+            font-size: 1rem;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        
         #chat-submit:hover {
-            background-color: #005ea6;
+            background: #1565c0;
+            transform: translateY(-2px);
+        }
+        
+        .typing-indicator {
+            display: flex;
+            padding: 12px 18px;
+            background: var(--white);
+            border-radius: 18px 18px 18px 0;
+            width: fit-content;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: typing 1.5s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+        
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .suggestion-chip {
+            background: var(--white);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .suggestion-chip:hover {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            #chat-container {
+                height: 80vh;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .hotel-card {
+                grid-template-columns: 1fr;
+            }
+            
+            .hotel-card img {
+                grid-row: 1;
+                width: 100%;
+                height: 140px;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Hotel Chatbot</h1>
-    <div id="chat-container">
-        <div id="chat-history">
-            <div class="bot-message">Hi! I’m your Hotel Booking Assistant. Tell me something like: 'I need a hotel in Mumbai for March 28-30 under ₹5000'.</div>
+    <div class="container">
+        <div class="header">
+            <h1>StayFinder</h1>
+            <p>Your AI-powered hotel booking assistant</p>
         </div>
-        <form id="chat-form">
-            <input type="text" id="chat-input" placeholder="Type your message here..." autocomplete="off">
-            <button type="submit" id="chat-submit">Send</button>
-        </form>
+        
+        <div id="chat-container">
+            <div id="chat-header">
+                <div class="avatar">
+                    <i class="fas fa-concierge-bell"></i>
+                </div>
+                <h2>Hotel Booking Assistant</h2>
+            </div>
+            
+            <div id="chat-history">
+                <div class="message bot-message">
+                    <p>👋 Hi! I'm your AI hotel booking assistant. I can help you find great hotels within your budget.</p>
+                    <p>Try something like: <em>"I need a hotel in Mumbai for April 28-30 under ₹5000"</em></p>
+                    
+                    <div class="suggestion-chips">
+                        <div class="suggestion-chip">Hotels in Mumbai</div>
+                        <div class="suggestion-chip">Budget stay in Bangalore</div>
+                        <div class="suggestion-chip">Luxury hotels in Goa</div>
+                    </div>
+                </div>
+            </div>
+            
+            <form id="chat-form">
+                <input type="text" id="chat-input" placeholder="Ask about hotels in any Indian city..." autocomplete="off">
+                <button type="submit" id="chat-submit"><i class="fas fa-paper-plane"></i></button>
+            </form>
+        </div>
     </div>
 
     <script>
         const chatHistory = document.getElementById('chat-history');
         const chatForm = document.getElementById('chat-form');
         const chatInput = document.getElementById('chat-input');
+        const suggestionChips = document.querySelectorAll('.suggestion-chip');
+        
+        // Handle suggestion chips - updated to automatically send message
+        suggestionChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                chatInput.value = chip.textContent;
+                // Automatically submit the form when a suggestion is clicked
+                chatForm.dispatchEvent(new Event('submit'));
+            });
+        });
 
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.id = 'typing-indicator';
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'typing-dot';
+                indicator.appendChild(dot);
+            }
+            
+            chatHistory.appendChild(indicator);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            return indicator;
+        }
+
+        function formatHotelResults(responseHTML) {
+            // Parse the HTML response
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(responseHTML, 'text/html');
+            const listItems = doc.querySelectorAll('li');
+            
+            if (listItems.length === 0) return responseHTML;
+            
+            let formattedHTML = responseHTML;
+            
+            // If it contains hotel results, reformat them
+            if (responseHTML.includes('<li><strong>') && responseHTML.includes('Stars:')) {
+                // Extract the intro text
+                const introMatch = responseHTML.match(/^(.*?)<br><ul>/s);
+                const introText = introMatch ? introMatch[1] : '';
+                
+                formattedHTML = introText + '<br><ul>';
+                
+                listItems.forEach(item => {
+                    const name = item.querySelector('strong')?.textContent || 'Hotel';
+                    const imgSrc = item.querySelector('img')?.src || '';
+                    
+                    // Extract other details
+                    const itemHTML = item.innerHTML;
+                    const starsMatch = itemHTML.match(/Stars: ([★☆]+)/);
+                    const stars = starsMatch ? starsMatch[1] : '';
+                    
+                    const priceMatch = itemHTML.match(/Price: ₹([\d.]+)\/night \(Total: ₹([\d.]+) \+ ₹([\d.]+) taxes\)/);
+                    const pricePerNight = priceMatch ? priceMatch[1] : '';
+                    const totalPrice = priceMatch ? priceMatch[2] : '';
+                    const taxes = priceMatch ? priceMatch[3] : '';
+                    
+                    const ratingMatch = itemHTML.match(/Rating: ([\d.]+) ([A-Za-z]+) \((\d+) reviews\)/);
+                    const rating = ratingMatch ? ratingMatch[1] : '';
+                    const ratingWord = ratingMatch ? ratingMatch[2] : '';
+                    const reviewCount = ratingMatch ? ratingMatch[3] : '';
+                    
+                    const featuresMatch = itemHTML.match(/Features: ([^<]+)/);
+                    const features = featuresMatch ? featuresMatch[1] : '';
+                    
+                    // Create modern hotel card HTML
+                    formattedHTML += `
+                    <li>
+                        <div class="hotel-card">
+                            <img src="${imgSrc}" alt="${name}">
+                            <div class="hotel-info">
+                                <h3>${name} <span class="hotel-rating">${rating} · ${reviewCount} reviews</span></h3>
+                                <div class="hotel-stars">${stars}</div>
+                                <div class="hotel-price">₹${pricePerNight}<span>/night</span></div>
+                            </div>
+                        </div>
+                        <div style="margin-top:10px">
+                            <span style="color:#757575">Total: ₹${totalPrice} + ₹${taxes} taxes</span>
+                            ${features !== 'N/A' ? `<span style="display:inline-block;margin-left:10px;color:#4caf50;"><i class="fas fa-check-circle"></i> ${features}</span>` : ''}
+                        </div>
+                    </li>`;
+                });
+                
+                formattedHTML += '</ul>';
+            }
+            
+            return formattedHTML;
+        }
+        
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const message = chatInput.value.trim();
@@ -108,6 +465,9 @@
             chatHistory.appendChild(userDiv);
             chatInput.value = '';
 
+            // Show typing indicator
+            const typingIndicator = showTypingIndicator();
+            
             // Scroll to bottom
             chatHistory.scrollTop = chatHistory.scrollHeight;
 
@@ -120,16 +480,25 @@
                 });
                 const data = await response.json();
 
+                // Remove typing indicator
+                typingIndicator.remove();
+                
+                // Format the response if it contains hotel results
+                const formattedResponse = formatHotelResults(data.response);
+                
                 const botDiv = document.createElement('div');
                 botDiv.className = 'message bot-message';
-                botDiv.innerHTML = data.response;  // Use innerHTML to render HTML
+                botDiv.innerHTML = formattedResponse;
                 chatHistory.appendChild(botDiv);
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             } catch (error) {
+                // Remove typing indicator
+                typingIndicator.remove();
+                
                 console.error('Error:', error);
                 const botDiv = document.createElement('div');
                 botDiv.className = 'message bot-message';
-                botDiv.textContent = 'Sorry, something went wrong. Try again!';
+                botDiv.innerHTML = '<p>Sorry, something went wrong. Please try again!</p>';
                 chatHistory.appendChild(botDiv);
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             }
